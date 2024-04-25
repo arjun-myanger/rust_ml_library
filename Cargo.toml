@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 ndarray = "0.15.3"
+ndarray-linalg = { version = "0.14.1", features = [
+    "openblas",
+] } # using OpenBLAS for matrix inversion
+approx = "0.5"
