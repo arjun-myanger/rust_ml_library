@@ -4,8 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ndarray = "0.15.3"
-ndarray-linalg = { version = "0.14.1", features = [
-    "openblas",
-] } # using OpenBLAS for matrix inversion
+nalgebra = "0.29" # Check for the latest version on crates.io
 approx = "0.5"

@@ -1,50 +1,46 @@
-use ndarray::{arr1, arr2, Array1, Array2};
-use ndarray_linalg::Inverse;
+use nalgebra::{DMatrix, DVector};
 
 pub struct LinearRegression {
-    coefficients: Vec<f64>,
+    coefficients: DVector<f64>,
 }
 
 impl LinearRegression {
     pub fn new() -> Self {
         LinearRegression {
-            coefficients: Vec::new(),
+            coefficients: DVector::from_element(0, 0.0), // Initialize with zero-sized vector
         }
     }
 
     pub fn fit(&mut self, x: &[Vec<f64>], y: &[f64]) {
-        // Convert vectors to ndarray structures
-        let x_matrix = Array2::from_shape_vec(
-            (x.len(), x[0].len()),
-            x.iter().flat_map(|r| r.iter().cloned()).collect(),
-        )
-        .unwrap();
-        let y_vector = Array1::from_vec(y.to_vec());
+        // Convert input data to DMatrix and DVector
+        let x_matrix = DMatrix::from_row_slice(
+            x.len(),
+            x[0].len(),
+            &x.iter().flat_map(|r| r.clone()).collect::<Vec<_>>(),
+        );
+        let y_vector = DVector::from_column_slice(y);
 
-        // Calculate (X^T * X)
-        let xt_x = x_matrix.t().dot(&x_matrix);
+        // Perform the matrix calculations
+        let xt = x_matrix.transpose();
+        let xt_x = &xt * &x_matrix;
+        let xt_y = xt * y_vector;
 
-        // Calculate the inverse of (X^T * X)
-        let xt_x_inv = xt_x.inv().expect("Matrix is not invertible");
-
-        // Calculate (X^T * Y)
-        let xt_y = x_matrix.t().dot(&y_vector);
-
-        // Calculate the coefficients (beta) = (X^T * X)^(-1) * (X^T * Y)
-        let beta = xt_x_inv.dot(&xt_y);
-
-        // Store the coefficients
-        self.coefficients = beta.to_vec();
+        // Calculate the coefficients
+        if let Some(xt_x_inv) = xt_x.try_inverse() {
+            self.coefficients = xt_x_inv * xt_y;
+        } else {
+            // Handle the case where the matrix is not invertible
+            eprintln!("Matrix is not invertible.");
+        }
     }
 
     pub fn predict(&self, x: &[Vec<f64>]) -> Vec<f64> {
-        x.iter()
-            .map(|row| {
-                row.iter()
-                    .zip(&self.coefficients)
-                    .map(|(xi, &bi)| xi * bi)
-                    .sum()
-            })
-            .collect()
+        let x_matrix = DMatrix::from_row_slice(
+            x.len(),
+            x[0].len(),
+            &x.iter().flat_map(|r| r.clone()).collect::<Vec<_>>(),
+        );
+        let result = x_matrix * &self.coefficients;
+        result.column(0).iter().copied().collect()
     }
 }
