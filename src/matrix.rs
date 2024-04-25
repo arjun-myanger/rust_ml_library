@@ -52,4 +52,17 @@ impl Matrix {
         // Return a new Matrix instance with the summed data and same dimensions.
         Matrix::new(data, self.rows, self.cols)
     }
+
+    // Method to multiply this matrix by a vector, returning the resulting vector.
+    pub fn multiply_vec(&self, vec: &Vec<f64>) -> Vec<f64> {
+        // Ensure that the number of columns in the matrix matches the length of the vector.
+        assert_eq!(self.cols, vec.len(), "Dimension mismatch");
+        let mut result = vec![0.0; self.rows];
+        for i in 0..self.rows {
+            for j in 0..self.cols {
+                result[i] += self.data[i * self.cols + j] * vec[j];
+            }
+        }
+        result
+    }
 }
