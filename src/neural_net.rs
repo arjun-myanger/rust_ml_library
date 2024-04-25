@@ -1,5 +1,7 @@
 // src/neural_net.rs
 
+use crate::matrix::Matrix;
+
 // Define the activation function you'll use
 fn sigmoid(x: f64) -> f64 {
     1.0 / (1.0 + (-x).exp())
@@ -44,6 +46,21 @@ impl Layer {
             self.outputs[i] = sigmoid(results[i]);
         }
     }
+
+    // Calculate output error (delta)
+    pub fn calculate_output_gradient(&mut self, target: &Vec<f64>) {
+        self.deltas = self
+            .outputs
+            .iter()
+            .zip(target.iter())
+            .map(|(&output, &target)| sigmoid_derivative(output) * (output - target))
+            .collect();
+    }
+
+    // Getter for outputs
+    pub fn outputs(&self) -> &Vec<f64> {
+        &self.outputs
+    }
 }
 
 // Structure for the neural network
@@ -65,7 +82,66 @@ impl NeuralNetwork {
         let mut inputs = inputs;
         for layer in &mut self.layers {
             layer.forward(inputs);
-            inputs = layer.outputs.clone();
+            inputs = layer.outputs().clone(); // Use the getter here
         }
+    }
+
+    // Perform backward propagation
+    pub fn backward(&mut self, targets: &Vec<f64>) {
+        let last_index = self.layers.len() - 1;
+        self.layers[last_index].calculate_output_gradient(targets);
+
+        for i in (0..last_index).rev() {
+            let next_layer = &self.layers[i + 1];
+            let current_layer = &mut self.layers[i];
+
+            current_layer.deltas = current_layer
+                .outputs()
+                .iter()
+                .enumerate()
+                .map(|(index, &output)| {
+                    let error_sum: f64 = next_layer
+                        .weights
+                        .data()
+                        .iter()
+                        .skip(index)
+                        .step_by(next_layer.outputs().len())
+                        .zip(next_layer.deltas.iter())
+                        .map(|(&weight, &delta)| weight * delta)
+                        .sum();
+                    sigmoid_derivative(output) * error_sum
+                })
+                .collect();
+        }
+    }
+
+    // Update weights and biases across all layers
+    pub fn update_weights_and_biases(&mut self, learning_rate: f64) {
+        for layer in &mut self.layers {
+            for i in 0..layer.weights.rows() {
+                for j in 0..layer.weights.cols() {
+                    let weight_gradient = layer.inputs[j] * layer.deltas[i];
+                    layer.weights.data_mut()[i * layer.weights.cols() + j] -=
+                        learning_rate * weight_gradient;
+                }
+                layer.biases[i] -= learning_rate * layer.deltas[i];
+            }
+        }
+    }
+
+    // Training method combining forward, backward, and update steps
+    pub fn train(&mut self, data: &[(Vec<f64>, Vec<f64>)], epochs: usize, learning_rate: f64) {
+        for _ in 0..epochs {
+            for &(ref inputs, ref outputs) in data {
+                self.forward(inputs.clone());
+                self.backward(outputs);
+                self.update_weights_and_biases(learning_rate);
+            }
+        }
+    }
+
+    // Getter for layers
+    pub fn layers(&self) -> &Vec<Layer> {
+        &self.layers
     }
 }

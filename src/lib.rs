@@ -1,4 +1,5 @@
-// src/lib.rs
+// lib.rs
+
 pub mod matrix;
-// src/lib.rs
-pub mod regression; // Make sure this line exists and is correct
+pub mod neural_net; // Declare neural_net here since it's part of your library
+pub mod regression; // Ensure all library modules are declared here
