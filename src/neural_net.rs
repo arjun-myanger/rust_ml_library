@@ -87,16 +87,29 @@ impl NeuralNetwork {
     }
 
     // Perform backward propagation
+    // Perform backward propagation
     pub fn backward(&mut self, targets: &Vec<f64>) {
         let last_index = self.layers.len() - 1;
         self.layers[last_index].calculate_output_gradient(targets);
 
-        for i in (0..last_index).rev() {
-            let weights_next = self.layers[i + 1].weights.data().to_vec(); // Copying data
-            let outputs_next = self.layers[i + 1].outputs().to_vec(); // Copying data
-            let deltas_next = self.layers[i + 1].deltas.clone(); // Copying data
+        // First, copy all necessary data from each layer into temporary structures
+        let layer_data: Vec<_> = self
+            .layers
+            .iter()
+            .map(|layer| {
+                (
+                    layer.weights.data().clone(),
+                    layer.outputs().clone(),
+                    layer.deltas.clone(),
+                )
+            })
+            .collect();
 
+        // Now, we use the copied data to avoid borrowing `self.layers` while it's being mutated
+        for i in (0..last_index).rev() {
+            let (weights_next, outputs_next, deltas_next) = &layer_data[i + 1];
             let current_layer = &mut self.layers[i];
+
             current_layer.deltas = current_layer
                 .outputs()
                 .iter()
@@ -106,7 +119,7 @@ impl NeuralNetwork {
                         .iter()
                         .skip(index)
                         .step_by(outputs_next.len())
-                        .zip(&deltas_next)
+                        .zip(deltas_next)
                         .map(|(&weight, &delta)| weight * delta)
                         .sum();
                     sigmoid_derivative(output) * error_sum
@@ -114,6 +127,10 @@ impl NeuralNetwork {
                 .collect();
         }
     }
+
+    // Note that the above code involves cloning the weights, outputs, and deltas for each layer
+    // which could lead to increased memory usage. This is generally acceptable for small to moderate sized networks
+    // but for very large models, more memory-efficient approaches may be necessary.
 
     // Update weights and biases across all layers
     // Update weights and biases across all layers
