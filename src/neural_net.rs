@@ -92,21 +92,21 @@ impl NeuralNetwork {
         self.layers[last_index].calculate_output_gradient(targets);
 
         for i in (0..last_index).rev() {
-            let next_layer = &self.layers[i + 1];
-            let current_layer = &mut self.layers[i];
+            let weights_next = self.layers[i + 1].weights.data().to_vec(); // Copying data
+            let outputs_next = self.layers[i + 1].outputs().to_vec(); // Copying data
+            let deltas_next = self.layers[i + 1].deltas.clone(); // Copying data
 
+            let current_layer = &mut self.layers[i];
             current_layer.deltas = current_layer
                 .outputs()
                 .iter()
                 .enumerate()
                 .map(|(index, &output)| {
-                    let error_sum: f64 = next_layer
-                        .weights
-                        .data()
+                    let error_sum: f64 = weights_next
                         .iter()
                         .skip(index)
-                        .step_by(next_layer.outputs().len())
-                        .zip(next_layer.deltas.iter())
+                        .step_by(outputs_next.len())
+                        .zip(&deltas_next)
                         .map(|(&weight, &delta)| weight * delta)
                         .sum();
                     sigmoid_derivative(output) * error_sum
@@ -116,15 +116,28 @@ impl NeuralNetwork {
     }
 
     // Update weights and biases across all layers
+    // Update weights and biases across all layers
     pub fn update_weights_and_biases(&mut self, learning_rate: f64) {
+        // Iterate over each layer and update weights and biases
         for layer in &mut self.layers {
+            // Calculate the weight gradients first
+            let mut weight_gradients = vec![vec![0.0; layer.weights.cols()]; layer.weights.rows()];
             for i in 0..layer.weights.rows() {
                 for j in 0..layer.weights.cols() {
-                    let weight_gradient = layer.inputs[j] * layer.deltas[i];
-                    layer.weights.data_mut()[i * layer.weights.cols() + j] -=
-                        learning_rate * weight_gradient;
+                    weight_gradients[i][j] = layer.inputs[j] * layer.deltas[i] * learning_rate;
                 }
-                layer.biases[i] -= learning_rate * layer.deltas[i];
+            }
+
+            // Now, apply the weight gradients
+            for i in 0..layer.weights.rows() {
+                for j in 0..layer.weights.cols() {
+                    // Directly access data_mut to update weights
+                    let data_index = i * layer.weights.cols() + j;
+                    *layer.weights.data_mut().get_mut(data_index).unwrap() -=
+                        weight_gradients[i][j];
+                }
+                // Update biases in the same loop
+                layer.biases[i] -= layer.deltas[i] * learning_rate;
             }
         }
     }
