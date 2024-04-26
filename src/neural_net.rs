@@ -3,7 +3,7 @@
 use crate::matrix::Matrix;
 
 // Define the activation function you'll use
-fn sigmoid(x: f64) -> f64 {
+pub fn sigmoid(x: f64) -> f64 {
     1.0 / (1.0 + (-x).exp())
 }
 
